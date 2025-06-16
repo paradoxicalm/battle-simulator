@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <title>Pokémon Battle</title>
+      <style>
+         body {
+         font-family: Arial, sans-serif;
+         background-color: #f0f8ff;
+         display: flex;
+         justify-content: center;
+         padding: 20px;
+         }
+         .battle-container {
+         display: flex;
+         justify-content: space-between;
+         width: 700px;
+         border: 2px solid #333;
+         border-radius: 10px;
+         padding: 20px;
+         background-color: #fff;
+         }
+         .pokemon {
+         width: 300px;
+         text-align: center;
+         }
+         .pokemon h2 {
+         margin-bottom: 10px;
+         }
+         .sprite img {
+         width: 150px;
+         height: 150px;
+         }
+         .types {
+         margin-bottom: 10px;
+         }
+         .type {
+         display: inline-block;
+         padding: 5px 10px;
+         margin: 0 5px;
+         border-radius: 15px;
+         background-color: #eee;
+         font-weight: bold;
+         text-transform: capitalize;
+         }
+         .hp-bar {
+         background-color: #ddd;
+         border-radius: 10px;
+         width: 200px;
+         height: 20px;
+         margin: 10px auto;
+         overflow: hidden;
+         }
+         .hp-fill {
+         background-color: #4caf50;
+         height: 100%;
+         width: 100%; /* we’ll adjust with JS later for real HP */
+         transition: width 0.5s ease;
+         }
+         .moves {
+         display: flex;
+         justify-content: center;
+         gap: 12px;
+         flex-wrap: wrap; /* wrap if screen is too narrow */
+         margin-top: 10px;
+         }
+         .move {
+         background-color: #cce5ff;
+         border: 1px solid #99ccff;
+         border-radius: 5px;
+         padding: 6px 10px;
+         width: auto;
+         cursor: pointer;
+         user-select: none;
+         font-weight: bold;
+         text-transform: capitalize;
+         }
+         .move:hover {
+         background-color: #99ccff;
+         }
+      </style>
+   </head>
+   <body>
+      <!-- vvv will be updated with battle information later -->
+      <div id="battle-message" style="text-align: center; margin: 10px; font-weight: bold; font-size: 1.2em;"></div>
+      <div class="battle-container">
+         <input type="hidden" id="user-name" value="{{ user_pokemon.name }}" />
+         <input type="hidden" id="opponent-name" value="{{ opponent_pokemon.name }}" />
+         <!-- User Pokémon -->
+         <div class="pokemon" id="user-pokemon">
+            <h2>{{ user_pokemon.name | capitalize }}</h2>
+            <div class="sprite">
+               <img src="{{ user_pokemon.sprite }}" alt="{{ user_pokemon.name }} sprite" style="transform: scaleX(-1);"/>
+            </div>
+            <div class="types">
+               {% for t in user_pokemon.types %}
+               <span class="type">{{ t }}</span>
+               {% endfor %}
+            </div>
+            <div class="hp-bar" title="HP">
+               <div class="hp-fill" style="width: {{ (user_pokemon.current_hp / user_pokemon.stats.hp) * 100 }}%;"></div>
+            </div>
+            <p><strong>What should {{ user_pokemon.name | capitalize }} do?</strong></p>
+            <p id="user_hp_number">HP: {{ user_pokemon.current_hp }} / {{ user_pokemon.stats.hp }}</p>
+            <div class="moves">
+               {% for move in user_pokemon.moves %} <!-- Display your pokemon's moves as buttons -->
+               <button class="move" onclick="attack('{{ move }}')">{{ move }}</button>
+               {% endfor %}
+            </div>
+         </div>
+         <!-- Opponent Pokémon -->
+         <div class="pokemon" id="opponent-pokemon">
+            <h2>{{ opponent_pokemon.name | capitalize }}</h2>
+            <div class="sprite">
+               <img src="{{ opponent_pokemon.sprite }}" alt="{{ opponent_pokemon.name }} sprite" />
+            </div>
+            <div class="types">
+               {% for t in opponent_pokemon.types %}
+               <span class="type">{{ t }}</span>
+               {% endfor %}
+            </div>
+            <div class="hp-bar" title="HP">
+               <div class="hp-fill" style="width: {{ (opponent_pokemon.current_hp / opponent_pokemon.stats.hp) * 100 }}%; background-color: #e53935;"></div>
+            </div>
+            <p id="opponent_hp_number">HP: {{ opponent_pokemon.current_hp }} / {{ opponent_pokemon.stats.hp }}</p>
+         </div>
+      </div>
+      <div style="text-align: center; margin-top: 20px;">
+         <button id="restart-button">Restart Battle</button>
+      </div>
+      <script> 
+         // store the necessary data for each pokemon
+                   const userPokemon = {
+                   name: "{{ user_pokemon.name }}",
+                   stats: {
+                   	hp: {{ user_pokemon.stats.hp }} || 50,
+                   	attack: {{ user_pokemon.stats.attack }} || 50,
+                   	defense: {{ user_pokemon.stats.defense }} || 50,
+                   	spAttack: {{ user_pokemon.stats['special-attack'] }} || 50,
+                   	spDefense: {{ user_pokemon.stats['special-defense'] }} || 50,
+                   	speed: {{ user_pokemon.stats.speed }} || 50
+                   },
+                   current_hp: {{ user_pokemon.current_hp }} || 50,
+                   moves: JSON.parse('{{ user_pokemon.moves|tojson|safe }}'),
+                   types: JSON.parse('{{ user_pokemon.types|tojson|safe }}')
+                   };
+         
+                   const opponentPokemon = {
+                   name: "{{ opponent_pokemon.name }}",
+                   stats: {
+                   	hp: {{ opponent_pokemon.stats.hp }} || 50,
+                   	attack: {{ opponent_pokemon.stats.attack }} || 50,
+                   	defense: {{ opponent_pokemon.stats.defense }} || 50,
+                   	spAttack: {{ opponent_pokemon.stats['special-attack'] }} || 50,
+                   	spDefense: {{ opponent_pokemon.stats['special-defense'] }} || 50,
+                   	speed: {{ opponent_pokemon.stats.speed }} || 50
+                   },
+                   current_hp: {{ opponent_pokemon.current_hp }} || 50,
+                   moves: JSON.parse('{{ opponent_pokemon.moves|tojson|safe }}'),
+                   types: JSON.parse('{{ opponent_pokemon.types|tojson|safe }}')
+                   };
+         
+         // selecting a move will cause this function to run.
+         // the opponent's move will also be processed 
+                   function attack(move) {
+           if (userPokemon.current_hp <= 0 || opponentPokemon.current_hp <= 0) {
+               // Prevent sending extra requests after battle ends
+               return;
+           }
+                   	    if (!move) {
+                           battleMessage.textContent = 'Please select a move before attacking!';
+                           return;
+                       }
+         
+                   	const attackData = {
+                   	user_pokemon: userPokemon.name,
+                   	opponent_pokemon: opponentPokemon.name,
+                   	your_move: move,
+                   	user_hp: userPokemon.current_hp,
+                   	opponent_hp: opponentPokemon.current_hp
+                   };
+         // call the attack route from Flask, which will be the source of damage calculation and turn results
+                   	fetch('/attack', {
+                   	method: 'POST',
+                   	headers: {
+                   	'Content-Type': 'application/json'
+                   	},
+                   	body: JSON.stringify(attackData)
+                   	})
+                   	.then(response => {
+                                       if (!response.ok) {
+                                           throw new Error('Network response was not ok');
+                                       }
+                                       return response.json();
+                                   })
+                                   .then(data => {
+                                       if (data.error) {
+                                           throw new Error(data.error);
+                                       }
+                                       processAttack(data);
+                                   })
+                                   .catch(error => {
+                                       console.error('Error:', error);
+                                       battleMessage.textContent = 'An error occurred during the battle.';
+         
+                                       document.querySelectorAll('.move-button').forEach(btn => {
+                                           btn.disabled = false;
+                                       });
+                                   });
+                           }
+         // change the page to reflect the results of each side's attack
+                   function processAttack(data) {
+                   const battleMessage = document.getElementById('battle-message');
+                   let messages = [];
+         
+            // within the attack route in the Python file, the results are distinguished by speed. for example, first_dmg_dealt is the amount of damage that the first moving pokemon did 
+         // copy the speed comparison logic so that the results from the attack route can be applied to the correct pokemon
+                   const userIsFirst = userPokemon.stats.speed >= opponentPokemon.stats.speed;
+         
+                   if (userIsFirst) {
+                       userPokemon.current_hp = data.first_hp;
+                       opponentPokemon.current_hp = data.second_hp;
+                     } else {
+                       opponentPokemon.current_hp = data.first_hp;
+                       userPokemon.current_hp = data.second_hp;
+                     }
+                   if (data.first_message) messages.push(data.first_message);
+                   if (data.second_message) messages.push(data.second_message);
+         
+                   if (userPokemon.current_hp === 0) {
+                   	messages.push("You lost!"); }
+                   if (opponentPokemon.current_hp === 0) {
+                   	messages.push("You won!"); }
+         
+                   battleMessage.innerHTML = messages.join('<br>')
+         
+         
+              // update the HP bar as well as the hp text
+                     document.getElementById("user_hp_number").innerText = `HP: ${userPokemon.current_hp} / ${userPokemon.stats.hp}`;
+                     document.getElementById("opponent_hp_number").innerText = `HP: ${opponentPokemon.current_hp} / ${opponentPokemon.stats.hp}`;
+         
+                     document.querySelector("#user-pokemon .hp-fill").style.width = `${(userPokemon.current_hp / userPokemon.stats.hp) * 100}%`;
+                     document.querySelector("#opponent-pokemon .hp-fill").style.width = `${(opponentPokemon.current_hp / opponentPokemon.stats.hp) * 100}%`;
+                   }
+         
+            // restart button just reloads the page
+                   document.getElementById("restart-button").addEventListener("click", function() { location.reload();
+                   });
+               
+      </script>
+   </body>
+</html>
