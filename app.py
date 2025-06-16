@@ -4,6 +4,7 @@ from flask import Flask, render_template, request, jsonify
 import requests.exceptions
 import random
 import math
+import os
 import pokebase as pb
 
 app = Flask(__name__)
@@ -307,5 +308,6 @@ def calculate_damage_raw(attacker, defender, move, level=100):
     return math.floor(basedmg * modifier)
 
 # run the app
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', debug=True)
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
